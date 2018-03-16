@@ -21,34 +21,34 @@ class Queue {
     // Return the newly added process
     enqueue(process) {
         this.processes.push(process);
-        proc.setParentQueue(this);
+        process.setParentQueue(this);
         return process;
     }
 
     // Removes the least-recently added process from the list of processes
     // Return the newly-removed process
     dequeue() {
-
+        return this.processes.splice(0, 1);
     }
 
     // Return the least-recently added process without removing it from the list of processes
     peek() {
-
+        return this.processes[0];
     }
 
     // Checks to see if there are any processes in the list of processes
     isEmpty() {
-
+        return this.processes.length < 1 ? true : false;
     }
 
     // Return this queue's priority level
     getPriorityLevel() {
-
+        return this.priorityLevel;
     }
 
     // Return this queue's queueType
     getQueueType() {
-
+        return this.queueType;
     }
 
     // Manages a process's execution for the appropriate amount of time
@@ -62,21 +62,37 @@ class Queue {
     // If it isn't finished, emit a scheduler interrupt notifying the scheduler that this process
     // needs to be moved to a lower priority queue
     manageTimeSlice(currentProcess, time) {
-
+        if (currentProcess.isStateChanged()) {
+            this.quantumClock = 0;
+            return;
+        }
+        this.quantumClock += time;
+        if (this.quantumClock > this.quantum) {
+            //move to a lower queue
+            this.quantumClock = 0;
+            let process = this.dequeue(); //process == currentProcess
+            if (!process.isFinished()) {
+                handleInterrupt(queue, process, SchedulerInterrupt.LOWER_PRIORITY);
+            }
+        }
     }
 
     // Execute a non-blocking process
     // Peeks the next process and runs its `executeProcess` method with input `time`
     // Call `this.manageTimeSlice` with the peeked process and input `time`
     doCPUWork(time) {
-
+        let process = this.processes.peek();
+        process.executeProcess(time);
+        this.manageTimeSlice(process, time);
     }
 
     // Execute a blocking process
     // Peeks the next process and runs its `executeBlockingProcess` method with input `time`
     // Call `this.manageTimeSlice` with the peeked process and input `time`
     doBlockingWork(time) {
-
+        let process = this.processes.peek();
+        process.executeBlockingProcess(time);
+        this.manageTimeSlice(process, time);
     }
 
     // The queue's interrupt handler for notifying when a process needs to be moved to a different queue
@@ -85,7 +101,18 @@ class Queue {
     // In the case of a PROCESS_BLOCKED interrupt, emit the appropriate scheduler interrupt to the scheduler's interrupt handler
     // In the case of a PROCESS_READY interrupt, emit the appropriate scheduler interrupt to the scheduler's interrupt handler
     emitInterrupt(source, interrupt) {
-
+        let index = this.processes.indexOf(source);
+        let process = this.processes.splice(index, 1);
+        switch (interrupt) {
+            case SchedulerInterrupt.PROCESS_BLOCKED:
+                handleInterrupt(this.processes, process, SchedulerInterrupt.PROCESS_BLOCKED);
+                break;
+            case SchedulerInterrupt.PROCESS_READY:
+                handleInterrupt(this.processes, process, SchedulerInterrupt.PROCESS_READY);
+                break;
+            default:
+                break;
+        }
     }
 }
 

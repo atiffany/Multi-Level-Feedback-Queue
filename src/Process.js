@@ -33,9 +33,9 @@ class Process {
     // Else, decrement this process's `this.cpuTimeNeeded` property by the input `time`
     executeProcess(time) {
         this.stateChanged = false;
-        if (this.cpuTimeNeeded > 0) {
-            // emit queue interrupt??
-            SchedulerInterrupt();
+        if (this.blockingTimeNeeded > 0) {
+            // emit queue interrupt
+            this.queue.emitInterrupt(this, SchedulerInterrupt.PROCESS_BLOCKED);
             this.stateChanged = true;
         } else {
             this.cpuTimeNeeded -= time;
@@ -49,7 +49,7 @@ class Process {
     executeBlockingProcess(time) {
         this.blockingTimeNeeded -= time;
         if (this.blockingTimeNeeded <= 0) {
-            SchedulerInterrupt();
+            this.queue.emitInterrupt(this, SchedulerInterrupt.PROCESS_READY);
             this.stateChanged = true;
         }
     }

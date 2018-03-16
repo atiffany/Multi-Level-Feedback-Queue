@@ -28,18 +28,33 @@ class Scheduler {
     // Once that is done, check to see if the queues are empty
     // If yes, then break out of the infinite loop
     // Otherwise, perform another loop iteration
-    run() {
-
+   run() {
+        while (!this.allEmpty()) {
+            const workTime = Date.now();
+            worktime -= this.clock;
+            this.clock = workTime;
+            if (this.blockingQueue.processes.length > 0) {
+                //not sure what to do here
+                this.blockingQueue.doBlockingWork(workTime);
+                for (let i = 0; i < this.runningQueues.length; i++) {
+                    this.runningQueues[i].doCPUWork(workTime);
+                }
+            }
+            if(this.allEmpty()) {
+                return;
+            }
+        }
     }
 
     // Checks that all queues have no processes 
     allEmpty() {
+        return this.blockingQueue.processes.length === 0 && this.runningQueues.length === 0;
 
     }
 
     // Adds a new process to the highest priority level running queue
     addNewProcess(process) {
-
+        this.runningQueues[0].enqueue(process);
     }
 
     // The scheduler's interrupt handler that receives a queue, a process, and an interrupt string
@@ -49,7 +64,25 @@ class Scheduler {
     // If it is a running queue, add the process to the next lower priority queue, or back into itself if it is already in the lowest priority queue
     // If it is a blocking queue, add the process back to the blocking queue
     handleInterrupt(queue, process, interrupt) {
-
+        switch (interrupt) {
+            case SchedulerInterrupt.PROCESS_BLOCKED:
+                this.blockingQueue.enqueue(process);
+                break;
+            case SchedulerInterrupt.PROCESS_READY:
+                this.runningQueues[0].push(process);
+                break;
+            case SchedulerInterrupt.LOWER_PRIORITY:
+                switch (queue.getQueueType()) {
+                    case QueueType.CPU_QUEUE:
+                        let level = queue.getPriorityLevel();
+                        level = level >= 2? 2 : level++; //set level one priority level down, if possible
+                        this.runningQueues[level].enqueue(process);
+                        break;
+                    case QueueType.BLOCKING_QUEUE:
+                        this.blockingQueue.enqueue(process);    
+                        break;
+                }
+        }
     }
 
     // Private function used for testing; DO NOT MODIFY
